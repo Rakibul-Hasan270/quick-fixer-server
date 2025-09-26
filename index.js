@@ -1,5 +1,6 @@
 const express = require('express');
 const app = express();
+const jwt = require('jsonwebtoken');
 const cors = require('cors');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
@@ -25,11 +26,48 @@ async function run() {
         await client.connect();
 
         const servicesCollection = client.db('quickFixer').collection('services');
+        const usersCollection = client.db('quickFixer').collection('users');
         const reviewsCollection = client.db('quickFixer').collection('reviews');
 
+        // users related apis 
+        app.post('/users', async (req, res) => {
+            const user = req.body;
+            const filter = { email: user.email };
+            const existingUser = await usersCollection.findOne(filter);
+            if (existingUser) {
+                return res.send({ message: 'user already exists', insertedId: null });
+            }
+            const result = await usersCollection.insertOne(user);
+            res.send(result);
+        })
 
-        app.get('/service', async (req, res) => {
+        app.post('/jwt', async (req, res) => {
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '1h' });
+            res.send({ token });
+        })
+
+        app.get('/services', async (req, res) => {
             const result = await servicesCollection.find().toArray();
+            res.send(result);
+        })
+
+        app.get('/mtyCard', async (req, res) => {
+            const email = req.query.email;
+            const result = await servicesCollection.find({ email: email }).toArray();
+            res.send(result);
+        })
+
+        app.delete('/myCard/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const result = await servicesCollection.deleteOne(filter);
+            res.send(result);
+        })
+
+        app.post('/services', async (req, res) => {
+            const service = req.body;
+            const result = await servicesCollection.insertOne(service);
             res.send(result);
         })
 
